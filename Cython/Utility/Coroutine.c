@@ -478,7 +478,20 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value) {
 
     __Pyx_PyThreadState_assign
     if (value) {
-#if CYTHON_COMPILING_IN_PYPY
+#if CYTHON_COMPILING_IN_PYSTON
+        // Generators always return to their most recent caller, not
+        // necessarily their creator.
+        if (self->exc_traceback) {
+            PyTracebackObject *tb = (PyTracebackObject *) self->exc_traceback;
+            PyFrameObject *f = tb->tb_frame;
+
+            /* Py_XINCREF($local_tstate_cname->frame); */
+            /* assert(f->f_back == NULL); */
+            assert(PyFrame_GetBack(f) == NULL);
+            PyFrame_SetBack(f, PyThreadState_GetFrame($local_tstate_cname));
+            /* f->f_back = $local_tstate_cname->frame; */
+        }
+#elif CYTHON_COMPILING_IN_PYPY
         // FIXME: what to do in PyPy?
 #else
         // Generators always return to their most recent caller, not
@@ -505,7 +518,16 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value) {
     if (retval) {
         __Pyx_ExceptionSwap(&self->exc_type, &self->exc_value,
                             &self->exc_traceback);
-#if CYTHON_COMPILING_IN_PYPY
+#if CYTHON_COMPILING_IN_PYSTON
+        // Don't keep the reference to f_back any longer than necessary.  It
+        // may keep a chain of frames alive or it could create a reference
+        // cycle.
+        if (self->exc_traceback) {
+            PyTracebackObject *tb = (PyTracebackObject *) self->exc_traceback;
+            PyFrameObject *f = tb->tb_frame;
+            PyFrame_SetBack(f, NULL);
+        }
+#elif CYTHON_COMPILING_IN_PYPY
         // FIXME: what to do in PyPy?
 #else
         // Don't keep the reference to f_back any longer than necessary.  It

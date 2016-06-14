@@ -300,7 +300,8 @@ static int __Pyx__GetException(PyThreadState *tstate, PyObject **type, PyObject 
 static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb) {
 #endif
     PyObject *local_type, *local_value, *local_tb;
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && !CYTHON_COMPILING_IN_PYSTON
+    // Pyston use BoxedFrame instead access the member of PyFrameObject directly
     PyObject *tmp_type, *tmp_value, *tmp_tb;
     local_type = tstate->curexc_type;
     local_value = tstate->curexc_value;
@@ -332,7 +333,8 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb) 
     *type = local_type;
     *value = local_value;
     *tb = local_tb;
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && !CYTHON_COMPILING_IN_PYSTON
+    // Pyston use BoxedFrame instead access the member of PyFrameObject directly
     tmp_type = tstate->exc_type;
     tmp_value = tstate->exc_value;
     tmp_tb = tstate->exc_traceback;
@@ -366,7 +368,8 @@ static CYTHON_INLINE void __Pyx_ReraiseException(void); /*proto*/
 
 static CYTHON_INLINE void __Pyx_ReraiseException(void) {
     PyObject *type = NULL, *value = NULL, *tb = NULL;
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && !CYTHON_COMPILING_IN_PYSTON
+    // Pyston use BoxedFrame instead access the member of PyFrameObject directly
     PyThreadState *tstate = PyThreadState_GET();
     type = tstate->exc_type;
     value = tstate->exc_value;
@@ -398,7 +401,9 @@ static CYTHON_INLINE void __Pyx_ReraiseException(void) {
 //@substitute: naming
 //@requires: PyThreadStateGet
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && !CYTHON_COMPILING_IN_PYSTON
+// Pyston use BoxedFrame instead PyFrameObject
+// And not allow to access the memeber of PyFrameObject directly
 #define __Pyx_ExceptionSave(type, value, tb)  __Pyx__ExceptionSave($local_tstate_cname, type, value, tb)
 static CYTHON_INLINE void __Pyx__ExceptionSave(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb); /*proto*/
 #define __Pyx_ExceptionReset(type, value, tb)  __Pyx__ExceptionReset($local_tstate_cname, type, value, tb)
@@ -412,7 +417,9 @@ static CYTHON_INLINE void __Pyx__ExceptionReset(PyThreadState *tstate, PyObject 
 
 /////////////// SaveResetException ///////////////
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && !CYTHON_COMPILING_IN_PYSTON
+// Pyston use BoxedFrame instead PyFrameObject
+// And not allow to access the memeber of PyFrameObject directly
 static CYTHON_INLINE void __Pyx__ExceptionSave(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb) {
     *type = tstate->exc_type;
     *value = tstate->exc_value;
@@ -440,7 +447,9 @@ static CYTHON_INLINE void __Pyx__ExceptionReset(PyThreadState *tstate, PyObject 
 //@substitute: naming
 //@requires: PyThreadStateGet
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && !CYTHON_COMPILING_IN_PYSTON
+// Pyston use BoxedFrame instead PyFrameObject
+// And not allow to access the memeber of PyFrameObject directly
 #define __Pyx_ExceptionSwap(type, value, tb)  __Pyx__ExceptionSwap($local_tstate_cname, type, value, tb)
 static CYTHON_INLINE void __Pyx__ExceptionSwap(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb); /*proto*/
 #else
@@ -449,7 +458,9 @@ static CYTHON_INLINE void __Pyx_ExceptionSwap(PyObject **type, PyObject **value,
 
 /////////////// SwapException ///////////////
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && !CYTHON_COMPILING_IN_PYSTON
+// Pyston use BoxedFrame instead PyFrameObject
+// And not allow to access the memeber of PyFrameObject directly
 static CYTHON_INLINE void __Pyx__ExceptionSwap(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb) {
     PyObject *tmp_type, *tmp_value, *tmp_tb;
     tmp_type = tstate->exc_type;
@@ -615,7 +626,11 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
         0                    /*PyObject *locals*/
     );
     if (!py_frame) goto bad;
+#if CYTHON_COMPILING_IN_PYSTON
+    PyFrame_SetLineNumber(py_frame, py_line);
+#else
     py_frame->f_lineno = py_line;
+#endif
     PyTraceBack_Here(py_frame);
 bad:
     Py_XDECREF(py_code);
