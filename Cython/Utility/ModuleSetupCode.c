@@ -32,15 +32,39 @@
   #define Py_HUGE_VAL HUGE_VAL
 #endif
 
-#ifdef PYPY_VERSION
+
+#define IMPLEMENTATION_SUPPORTS_EXTENDED_C_API
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifndef IMPLEMENTATION_SUPPORTS_EXTENDED_C_API
+static inline void PyFrame_SetLineNumber(PyFrameObject *py_frame, int py_line) { py_frame->f_lineno = py_line; }
+static inline int PyCode_HasFreeVars(PyCodeObject *co) { return PyCode_GetNumFree((PyCodeObject *)o) > 0 ? 1 : 0; }
+#endif
+
+#ifdef __cplusplus
+}
+
+#endif
+#if defined(PYSTON_VERSION)
+  #define CYTHON_COMPILING_IN_PYSTON 1
+  #define CYTHON_COMPILING_IN_PYPY 0
+  #define CYTHON_COMPILING_IN_CPYTHON 1
+#elif defined(PYPY_VERSION)
   #define CYTHON_COMPILING_IN_PYPY 1
   #define CYTHON_COMPILING_IN_CPYTHON 0
+  #define CYTHON_COMPILING_IN_PYSTON 0
 #else
   #define CYTHON_COMPILING_IN_PYPY 0
   #define CYTHON_COMPILING_IN_CPYTHON 1
+  #define CYTHON_COMPILING_IN_PYSTON 0
 #endif
 
-#if !defined(CYTHON_USE_PYLONG_INTERNALS) && CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02070000
+
+#if !defined(CYTHON_USE_PYLONG_INTERNALS) && CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02070000 && !CYTHON_COMPILING_IN_PYSTON
+// Pyston not use CPython PyLong implementation
   #define CYTHON_USE_PYLONG_INTERNALS 1
 #endif
 #if CYTHON_USE_PYLONG_INTERNALS
